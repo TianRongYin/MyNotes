@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yin.mapper.CardMapper">
+    <select id="selectByRegion" resultType="com.yin.domain.Card">
+        SELECT c.*, u.name
+        FROM card c
+        JOIN user u ON c.u_id = u.u_id
+        WHERE c.region = #{region};
+    </select>
+    <delete id="deleteByIds">
+        delete from emp where id in
+        <foreach collection="ids" item="id" separator="," open="(" close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>
