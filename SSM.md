@@ -1094,7 +1094,7 @@ server:
   - 在Dao层接口上加上@Mapper注解
 - 静态页面放进resources里面的static包下
 
-## 过滤器（登录检验）
+## 过滤器
 
 - 在启动类上加@ServletComponentScan注解开启对过滤器的扫描
 
@@ -1108,6 +1108,20 @@ server:
   public static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
   boolean b = PATH_MATCHER.match(url,requesturl)
   ```
+
+## 拦截器
+
+```
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+    @Resource
+    CORSInterceptor corsInterceptor;
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(corsInterceptor);
+    }
+}
+```
 
 # MybatisPlus
 
@@ -1352,7 +1366,7 @@ mybatis-plus:
 
 ==注意开启后实体类的成员变量凡是非首字母带大写的都会被驼峰映射成下划线==
 
-# 整合所有
+# 实际开发
 
 ## 杂记
 
@@ -1445,19 +1459,6 @@ spring:
           response.setHeader("Access-Control-Max-Age", "3600");
           response.setHeader("Access-Control-Allow-Headers", "x-requested-with");
           return true;
-      }
-  }
-  ```
-
-  ```
-  注入拦截器：
-  @Configuration
-  public class WebConfig implements WebMvcConfigurer {
-      @Resource
-      CORSInterceptor corsInterceptor;
-      @Override
-      public void addInterceptors(InterceptorRegistry registry) {
-          registry.addInterceptor(corsInterceptor);
       }
   }
   ```
