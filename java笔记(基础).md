@@ -1,5 +1,3 @@
-
-
 # 杂记
 
 - "&&","||",具有短路效果,即根据左边已经可以判断结果则不会执行右边的代码(节省性能)
@@ -100,7 +98,7 @@ Objects类
 内含大量静态方法获取与系统相关的信息或系统级操作
 
 1. long currentTimeMillis()返回以毫秒为单位的当前时间
-2. void arraycopy(Object 数组,int 起点,Object 另数组,int 另起点,int 长度)将数组中指点的数据拷贝到另一个数组中
+2. void arraycopy(Object 数组1,int 起点,Object 数组2,int 另起点,int 长度)将数组1复制到数组2
 
 ## Date DateFormat
 
@@ -647,7 +645,7 @@ while(it.hasNext()){
 
 无序(无索引),不允许存储重复元素,底层是一个哈希表结构(查询速度非常快),只能用迭代器和增强for循环来遍历
 
-哈希值:系统随机给的一个十进制整数(就是对象的地址,只不过是逻辑地址)
+​	哈希值:系统随机给的一个十进制整数(就是对象的地址,只不过是逻辑地址)
 
 Object类有hashCode()方法获得对象的哈希值,String类等重写了这个方法(就不是随机数字了)
 
@@ -745,6 +743,9 @@ Runnable r=new Runnable(){重写run方法};
 new Thread(r).start();
 /
 new Thread(new Runnable(){重写run方法}).start();
+/
+Thread thread = new Thread(new Runnable(){重写run方法})；
+thread.start();
 ```
 
 ==线程安全问题原理建议观看视频==
