@@ -15,7 +15,7 @@ Vue是一个用于构建用户界面的渐进式＋框架
   	el: '', //通过el配置选择器
   	data: { //通过data提供数据
   		title: ''
-  	}，
+  	},
   	methods: { //提供处理逻辑函数
   		fh(){} //在方法中使用this.变量名调用数据
   	}
@@ -837,11 +837,154 @@ vuex是一个状态管理工具（插件），状态就是数据，可以帮我�
       }
       ```
 
+- ref和defineExpose（模板引用）
+
+  - 通过ref函数生成ref对象`const testRef = new ref(null)`
+
+  - 通过ref标识拿到组件对象，并使用`.value`获得数据
+
+  - setup语法糖内拿到的ref对象通常组件还没创建，所以ref函数需要挂载之后使用
+
+  - Vue3的组件方法和数据是不暴露的，通过defineExpose会暴露组件内方法和数据
+
+- provide和inject
+
+  - 顶层组件：`project('key', 数据)`
+  - 底层组件：`inject('key')`
+  - 响应式数据和方法都能使用
+
+## 新特性
+
+- defineOptions：`defineOptions({ name: '' //自定义有属性})`与setup平级的属性可以定义在这
+
+- defineModel：
+
+  - 在自定义组件上使用v-model，相当于传递一个modelvalue属性，同时触发`update :modelvalue `事件
+
+  - 在组件中还要配置props等，不方便，使用defineModel可以直接实现双向数据绑定
+
+  - 需要在vite配置
+    ```
+    plugins: [
+        vue({
+          script: {
+            defineModel: true
+          }
+        }),
+      ],
+    ```
+
+  - 通过defineModel函数生成`const modelValue = defineModel()`
+
+  - 直接修改modelValue就能修改父组件的数据
+
+## Pinia
+
+- 与VueX一样的作用，但是比VueX方便很多
+
+- 添加Pinia到项目
+
+  - 下载：`npm install pinia`
+
+  - 创建实例并传递给应用：
+    ```
+    import { createPinia } from 'pinia'
+    const pinia = createPinia()
+    createApp(App).use(pinia).mount('#app')
+    ```
+
+- 使用：
+  ```
+  import { defineStore } from "pinia";//导入
+  import { compile, computed } from "vue";
+  //定义仓库
+  export const userCounterStore = defineStore('counter', () =>{
+      const count = ref(0);//直接声明数据
+      const addCount = () => {count++}//直接声明操作数据的方法
+      const double = computed(() => count *2 )//直接声明计算属性
+      return{//导出
+          count,
+          addCount,
+          double
+      }
+  })
+  ```
+
+  - 在组件中导入仓库就可以使用
+  
+- 使用仓库时直接进行解构操作的话，数据会丢失响应式
+
+  - 解决办法：使用`const { count } = storeToRefs(仓库名)`
+
+- 持久化存储（插件）
+
+  - 安装：`npm i pinia-plugin-persistedstate`
+
+  - 注册到实例：
+    ```js
+    import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+    const pinia = createPinia().use(piniaPluginPersistedstate)
+    ```
+
+  - 使用：
+    ```
+    export const userCounterStore = defineStore('counter', () =>{
+    	const count =ref(0)
+    },{
+        // persist: true //开启当前模块的持久化
+        persist: {
+            key: 'key', //指定本地存储的唯一键名，默认为仓库名
+            paths: ['count'], //指定存储哪些数据
+            storage: sessionStorage //指定存储方式，默认localStorage
+        }
+    })
+    ```
+
+- 统一维护：将pinia的创建和配置单独写在js文件中，并在main.js中引入
+- 统一导出：在配置pinia的js文件中，将所有仓库一一导出`export * from './modules/user'`，在组件中可以直接从配置文件的路径导入
+
+## Vue Router4
+
+- 注册：
+
+```
+import { createWebHistory, createWebHashHistory } from "vue-router";
+import { createRouter } from "vue-router";
+//创建路由实例
+ const router = createRouter({
+    //配置history模式，hash或者history
+    //Vite 在一个特殊的import.meta.env对象上暴露环境变量。
+    history: createWebHashHistory(import.meta.env.BASE_URL),
+    routes:[//路由信息
+    	{ path: '/login', component: () => import('@/views/login/loginPage.vue') }
+    ]
+ })
+```
+
+- 使用：
+
+  - 在template中可以直接`$router.push()`使用
+
+  - 在setup脚本中需要获取路由对象
+    ```js
+    import { useRoute, useRouter } from 'vue-router'
+    const router = useRouter()//获取路由对象
+    const route = useRoute()//获取路由参数
+    ```
+
+## Pnpm
+
+- npm的替代品，效率更高
+- 安装方式：`npm install pnpm `
+- 使用：`pnpm install`、`pnpm add axios`
+- element-plus：`pnpm install element-plus`、`pnpm add -D unplugin-vue-components unplugin-auto-import`
+
 # 杂记
 
 - `Dom对象.focus()`获得焦点，通常用于页面挂载完成后直接让表单输入框获得焦点
 - 路径中`@`代表src
 - `<script setup>中的代码会在每次组件实例被创建之前执行`
+- 
 
 # Axios实例
 

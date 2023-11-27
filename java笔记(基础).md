@@ -771,6 +771,10 @@ thread.start();
 
 4. shutdown()销毁线程池
 
+线程通信：
+
+
+
 # Lambda表达式
 
 前提:![image-20221104133624658](assets/image-20221104133624658.png)

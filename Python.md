@@ -150,13 +150,13 @@
 ## 文件
 
 - 打开文件：
-  - 语法：`open(name,mode,coding)`，返回一个文件对象
+  - 语法：`open(name,mode,encoding)`，返回一个文件对象
     - name是目标文件名（也可以是具体路径）
     - mode是打开文件的模式
       - “r”：只读模式，文件的指针放在开头
       - “w”：只写模式，创建新文件并开始编辑，如果已存在同名文件则原有内容被删除
       - “a”：追加模式，在该文件中进行追加内容，没有则创建新文件进行编辑
-    - coding：编码格式，默认是utf-8
+    - encoding：编码格式，默认是utf-8
 - 读操作：
   - read(num)：num表示从文件中读取数据的长度，单位是字节，如果没有传入num则读取全部
   - readlines()：按照整行的方式将文件中的所有数据一次性读取，并用列表存储每行数据，每一行一个元素，返回列表
@@ -167,7 +167,7 @@
   - write(写入内容)：将内容写进内存中，并没有直接写进硬盘
   - flush()：刷新，将内存中积攒的内容写入硬盘
 - 文件关闭：`文件对象.close`
-- `with open(name,mode,coding) as 文件对象 :`：在当前方法下对文件执行一系列操作并自动关闭文件，不用手动关闭
+- `with open(name,mode,encoding) as 文件对象 :`：在当前方法下对文件执行一系列操作并自动关闭文件，不用手动关闭
 - `os.path.exists()`是否存在此文件
 
 ## 异常
@@ -270,6 +270,47 @@ final: #无论有没有异常都会执行的代码
 - 多态：
   - 包含抽象方法的类就是抽象类（接口），抽象方法就是没有具体实现的方法（==pass==）
 
+## 数据库
+
+- 连接并查询数据库
+
+```
+import pymysql
+
+# 连接数据库
+db = pymysql.connect(host='localhost',user='root',password='123456',port=3306)
+
+# 创建数据库的游标
+cursor = db.cursor()
+
+#execute()方法并执行 SQL 语句
+cursor.execute("select version()")
+
+# 读取第一条数据
+data = cursor.fetchone()
+#fetchall()查询当前游标至结束的所有行数据。使用fetchmany(size)查询多条数据
+print(data)
+
+# 关闭连接
+db.close()
+```
+
+- 修改数据
+
+```
+try:
+    sql = 'update students set name=%s where id=%s'
+    cursor.execute(sql,('李四','10004'))
+    db.commit()
+except:
+    db.rollback()
+```
+
+## 一些方法
+
+- 枚举`enumerate()`是python的内置函数，enumerate将其组成一个索引序列，利用它可以同时获得索引和值
+  - `for index, item in enumerate(list, 1):`第二个参数用于指定索引初始值，可省略
+
 # 杂记
 
 - 制表符`\t`：穿插在字符串之间输出的时候能将多行字符串进行对齐，效果相当于在键盘上按tab键
@@ -278,3 +319,4 @@ final: #无论有没有异常都会执行的代码
 - 控制字符串输出格式：`print("我的{}很大".format(j))`，花括号内可以用数字指定参数位置，也可以用变量名指定
 
 - `.isdigit()`判断字符串是否仅含有数字
+
