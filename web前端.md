@@ -497,6 +497,16 @@ consf fn = (...args) = {}//没有动态参数，只有剩余参数
 -  解构：解构就是从数组或对象中拿取值`const {name} = user `、`const [a, b, ...rest] = numbers`
 
   - 支持嵌套：`const {message, data : { data }} = axios.get()`
+  
+- 假链接：`<a href="javascript:;" >`
+
+- 对象或数组打平
+
+  - flatMap( parent => { parent.children })：将对象数组中的某一属性抽取出来成为新的数组
+  - flat(depth)：按照给定深度（默认为1）将元素递归并将子元素和父元素合并在一个数组
+
+- ES6数组和对象复制：`const people = {...oldpeople}`、`const array = [...oldArray]`
+
 
 # 一些奇怪的属性
 

@@ -2,6 +2,8 @@
 
 - "&&","||",具有短路效果,即根据左边已经可以判断结果则不会执行右边的代码(节省性能)
 
+- "<<",">>"位运算，"12306 << 32"即左移32位，在二进制的12306后添加32个0
+
 - 在本类的构造方法中可以用`**this**`访问另一个构造方法(通常用于无参调有参来赋值初始值以节省代码)
 
 - ==包装类==中的静态方法:toString(...),int parseInt(String)(字符串->基本类型)
@@ -11,8 +13,15 @@
 - 泛型通配符只能接受数据,不能往集合存储数据
 
 - 多用包装类，int a = null 会报空指针异常
+  - `return Boolean.TRUE.equals(success)`：自动拆箱容易空指针
 
 - shift+F6定义所有名称一起变
+
+- `i++`不是一个原子性的操作，他就是`+=`，涉及多线程的时候会出问题
+
+- 多线程要注意非并发集合，比如List，要转成线程安全的集合
+
+- IDEA技巧：在live template中可以设置快捷输入，比如sout这种，`change`选择对应的语言应用场景
 
 - 鼠标中键查看源码
 
@@ -329,6 +338,43 @@ public class 类名称{
 2. 修饰方法:不能被覆盖重写
 3. 修饰局部变量:==只能被赋值一次==,对于==引用类型,==不可改变的是==地址值==,可以调用函数改变内容
 4. 成员变量:必须手动赋值,不会有默认值,要么直接赋值,要么构造函数赋值且所有重载的构造函数都要对final的成员变量赋值.直接和构造函数二者选其一.
+
+# 枚举enum
+
+- 将常量组织起来，统一进行管理，用于状态码等场景
+
+```
+public enum TeamStatusEnum {
+    PUBLIC(0, "公开"),
+    PRIVATE(1, "私密"),
+    SECRET(2, "加密");
+
+    private final int status;
+    private final String message;
+
+    TeamStatusEnum(int status, String message) {
+        this.status = status;
+        this.message = message;
+    }
+
+    public int getStatus() {
+        return status;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+}
+
+```
+
+- 成员
+  - 枚举跟普通类一样可以用自己的变量、方法和构造函数，构造函数只能使用 private 访问修饰符，所以外部无法调用。
+  - 枚举既可以包含具体方法，也可以包含抽象方法。 如果枚举类具有抽象方法，则枚举类的每个实例都必须实现它。
+- 方法
+  - values() 返回枚举类中所有的值。
+  - ordinal()方法获取一个成员在枚举中的索引位置，用于枚举对象。
+  - valueOf()方法返回指定字符串值的枚举常量。
 
 # 继承(共性抽取)
 
@@ -713,6 +759,8 @@ try{可能出异常的代码} catch(异常变量){异常处理逻辑}finally{无
 
 # 多线程
 
+## 基础
+
 创建一个新线程:创建一个子类继承Thread,重写run()方法,在主程序中创建对象调用start()方法
 
 获取线程名字:
@@ -761,7 +809,7 @@ thread.start();
 
 线程池:
 
-1. Executors里面的静态方法创建线程池																						`static ExecutorService newFixedThreadPool(int nThreads)`返回的是一个 ExecutorService接口的实现类对象,用接口接收即可.
+1. Executors里面的静态方法创建线程池`static ExecutorService newFixedThreadPool(int nThreads)`返回的是一个 ExecutorService接口的实现类对象,用接口接收即可.
 
 2. 创建一个类实现Runnable接口,重写run方法
 
@@ -771,23 +819,104 @@ thread.start();
 
 4. shutdown()销毁线程池
 
-线程通信：
+## 线程调度和通信（并发）
 
+- 传参：创建Thread的子类，设置变量，通过构造方法或者set注入
 
+- 调度：
 
-# Lambda表达式
+  - `.join`：当子线程调用join方法时，主线程需要等待子线程的任务完成才能继续
+  - `Thread.yield()` 方法，暂停当前正在执行的线程对象，把执行机会让给相同或者更高优先级的线程。
+  - 等待唤醒：`wait()`：Object类中的方法，导致当前的线程等待，直到其他线程调用此对象的 notify() 方法或 notifyAll() 唤醒方法
 
-前提:![image-20221104133624658](assets/image-20221104133624658.png)
+- Callable接口和Future接口
 
-用处:省略匿名内部类的书写(比如排序sort时的Comparator<>)
+  - Runnable缺少的一项功能是，当线程终止时（即 run()完成时），我们无法使线程返回结果。
 
-格式:`new Runnable(){重写run方法}`改为`()->{方法体}`
+  - Java 中提供了 Callable 接口，但是不能直接替换 runnable，因为 Thread 类的构造方法根本没有 Callable
 
-省略:
+  - Future接口
 
-![image-20221104134016108](assets/image-20221104134016108.png)
+    - 就是对于具体的Runnable或者Callable任务的执行结果进行取消、查询是否完成、获取结果。
+    - 需要时可以通过get方法获取执行结果，该方法会阻塞直到任务返回结果。
 
-# File
+  - FutureTask
+
+    - FutureTask实现了RunnableFuture接口，后者同时继承Future接口和Runnable 接口，因此可以作为任务直接被线程执行
+
+    - ````
+      FutureTask<结果类型> futureTask = new FutureTask<>(callable实现类对象);
+      new Thread(futureTask,"线程1").start();
+      futureTask.get();
+      ````
+
+    - 一般 FutureTask 多用于耗时的计算，主线程可以在完成自己的任务后，再去获取结果
+
+- CompletableFuture
+
+  - `CompletableFuture`是对`Future`的扩展和增强，实现了对任务编排的能力
+  - 异步执行的，默认线程池是`ForkJoinPool.commonPool()`，但为了业务之间互不影响且便于定位问题，推荐使用自定义线程池
+  - 两个静态方法来创建一个异步操作，返回一个 CompletableFuture对象
+    - `supplyAsync(Supplier<U> supplier, Executor executor)`，创建带有返回值的异步任务，不填写线程池就用默认
+    - `runAsync(Runnable runnable, Executor executor)`，创建没有返回值的异步任务
+  - 默认线程数=cpu核数-1，线程池使用：CPU密集型：cpu核数-1，IO密集型：大于cpu核数
+
+## 线程池进阶
+
+```
+ExecutorService executor = 
+		 new ThreadPoolExecutor(int corePoolSize, //核心线程数量
+                              int maximumPoolSize,//     最大线程数
+                              long keepAliveTime, //       最大空闲时间
+                              TimeUnit unit,         //        时间单位
+                              BlockingQueue<Runnable> workQueue,   //   任务队列
+                              ThreadFactory threadFactory,    // 线程工厂
+                              RejectedExecutionHandler handler)  //  饱和处理机制 
+new ThreadPoolExecutor(16,1000,10000, TimeUnit.MINUTES,new ArrayBlockingQueue<>(10000));
+```
+
+4个参数的设计:
+
+1:**核心线程数(corePoolSize)**
+核心线程数的设计需要依据任务的处理时间和每秒产生的任务数量来确定,例如:执行一个任务需要0.1秒,系统百分之80的时间每秒都会产生100个任务,那么要想在1秒内处理完这100个任务,就需要10个线程,此时我们就可以设计核心线程数为10;当然实际情况不可能这么平均,所以我们一般按照8020原则设计即可,既按照百分之80的情况设计核心线程数,剩下的百分之20可以利用最大线程数处理;
+**2:任务队列长度(workQueue)**
+任务队列长度一般设计为:核心线程数/单个任务执行时间*2即可;例如上面的场景中,核心线程数设计为10,单个任务执行时间为0.1秒,则队列长度可以设计为200;
+**3:最大线程数(maximumPoolSize)**
+
+最大线程数的设计除了需要参照核心线程数的条件外,还需要参照系统每秒产生的最大任务数决定:例如:上述环境中,如果系统每秒最大产生的任务是1000个,那么,最大线程数=(最大任务数-任务队列长度)单个任务执行时间;既: 最大线程数=(1000-200)*0.1=80个;
+**4:最大空闲时间(keepAliveTime)**
+这个参数的设计完全参考系统运行环境和硬件压力设定,没有固定的参考值,用户可以根据经验和系统产生任务的时间间隔合理设置一个值即可;
+
+- 饱和处理机制：任务数超过了最大线程数需要怎么处理多余的任务
+
+## Volatile关键字
+
+- 线程可见性
+
+  - 线程之间的共享变量存储在主内存中每个线程都一个都有一个私有的本地内存，本地内存中存储了该线程以读/写共享变量的副本。
+
+  - 当一个线程把主内存中的共享变量读取到自己的本地内存中，然后做了更新。在还没有把共享变量刷新的主内存的时候，另外一个线程是看不到的。
+
+![img](assets/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBARmlnaHRlckxpdQ==,size_12,color_FFFFFF,t_70,g_se,x_16.png)
+
+- 顺序一致性
+
+  - 在执行程序时，为了提高性能，编译器和处理器常常会对指令做重排序。
+
+  - 创建一个对象主要分为如下三步：
+
+    1. 分配对象的内存空间。
+    2. 初始化对象。
+    3. 设置instance指向内存空间。
+
+    如果instane 不加volatile，上面的2，3可能会发生重排序。假设A，B两个线程同时获取，A线程获取到了锁，发生了指令重排序，先设置了instance指向内存空间。这个时候B线程也来获取，instance不为空，这样B拿到了没有初始化完成的单例对象
+
+- Volatile作用
+
+  - Volatile对任意单个变量的读/写具有原子性，但是类似于i++这种复合操作不具有原子性。
+  - 多线程访问volatile不会发生阻塞，而synchronized会发生阻塞。
+
+# File文件
 
 路径：
 
@@ -1115,4 +1244,140 @@ System.setOut(PrintStream out)能改变打印输出流的目的地，不改变�
 ==@Before==：初始化注解，在每个test方法执行之前都会执行的这个方法，通常用来初始化
 
 ==@After==：在每个test方法执行之后都会执行的这个方法，通常用来释放资源
+
+# Java8
+
+## Lambda
+
+- 接口的默认方法
+
+  - Java 8允许我们给接口添加一个非抽象的方法实现
+
+  - 只需要使用 default关键字即可，这个特征又叫做扩展方法
+
+  - ```
+    interface Formula {
+        double calculate(int a);
+        default double sqrt(int a) {
+            return Math.sqrt(a);
+        }
+    }
+    ```
+
+- Lambda
+
+  - 适用于函数式接口
+
+  - 写法：`(形参) -> { 方法体 }`
+
+    - 对于函数体只有一行代码的，你可以去掉大括号{}以及return关键字
+    - 你还可以写得更短点：Java编译器可以自动推导出参数类型，所以你可以不用再写一次类型。
+
+  - Lambda写法代替函数式接口的匿名内部类
+    ```
+    Collections.sort(names, (a, b) -> b.compareTo(a));
+    ```
+
+  - 我们可以直接在lambda表达式中访问外层的局部变量，不过该变量不能被后面代码修改，也不能在lambda表达式中修改
+
+  - Lambda表达式中是无法访问到默认方法
+
+- 函数式接口
+
+  - 仅仅只包含一个抽象方法的接口
+  - 添加 @FunctionalInterface 注解
+  - 编译器如果发现你标注了这个注解的接口有多于一个抽象方法的时候会报错的。
+
+- 方法与构造函数引用
+
+  - Java 8 允许你使用` :: `关键字来传递方法或者构造函数引用
+  - 只需要使用 Person::new 来获取Person类构造函数的引用
+
+## 核心函数式接口
+
+| 函数式接口                | 参数类型 | 返回类型 | 用途                                                         |
+| ------------------------- | -------- | -------- | ------------------------------------------------------------ |
+| Consumer 消费型接口       | T        | void     | 对类型为T的对象应用操作：void accept(T t)                    |
+| Supplier 提供型接口       | 无       | T        | 返回类型为T的对象：T get()                                   |
+| Function<T, R> 函数型接口 | T        | R        | 对类型为T的对象应用操作，并返回结果为R类型的对象：R apply(T t) |
+| Predicate 断言型接口      | T        | boolean  | 确定类型为T的对象是否满足某约束，并返回boolean值：boolean test(T t) |
+
+- Predicate接口
+
+  - Predicate 接口只有一个参数，返回boolean类型。
+
+  - 该接口包含多种默认方法来将Predicate组合成其他复杂的逻辑
+    ```
+    Predicate<String> predicate = (s) -> s.length() > 0;
+    predicate.test("foo");              // true
+    predicate.negate().test("foo");     // false
+    ```
+
+- Optional 接口
+
+  - 被定义为一个简单的容器，其值可能是null或者不是null
+  - 在Java 8中，不推荐你返回null而是返回Optional
+  - 方法：
+    - Optional.of(T t)：创建一个 Optional 实例
+    - Optional.empty(T t)：创建一个空的 Optional 实例
+    - Optional.ofNullable(T t)：若 t 不为 null，创建 Optional 实例，否则空实例
+    - isPresent()：判断是否包含某值
+    - orElse(T t)：如果调用对象包含值，返回该值，否则返回 t
+    - orElseGet(Supplier s)：如果调用对象包含值，返回该值，否则返回 s 获取的值
+    - map(Function f)：如果有值对其处理，并返回处理后的 Optional，否则返回 Optional.empty()
+    - flatmap(Function mapper)：与 map 相似，要求返回值必须是 Optional
+
+## Stream流
+
+- Stream 表示能应用在一组元素上一次执行的操作序列
+
+- Stream 的创建需要指定一个数据源，比如 java.util.Collection的子类，List或者Set， Map不支持
+
+- 可以通过 Collection.stream() 单线程或者 Collection.parallelStream() 多线程来创建一个Stream
+
+- Stream 操作分为中间操作或者最终操作两种，==最终操作返回一特定类型的计算结果，而中间操作返回Stream本身==
+
+- 中间操作：不会影响原有的数据源
+
+  - Filter 过滤：在过滤后的结果来应用其他Stream操作（比如forEach）
+    ```
+    stringCollection
+        .stream()
+        .filter((s) -> s.startsWith("a"))
+        .forEach(System.out::println);
+    ```
+
+  - Sort 排序：不指定一个自定义的Comparator则会使用默认排序。
+
+  - Map 映射：map会将元素根据指定的Function接口来依次将元素转成另外的对象，map返回的Stream类型是根据你map传递进去的函数的返回值决定的
+
+  - limit(long maxSize)：返回前几个元素组成的Stream流
+
+- 最终操作
+
+  - Match 匹配：
+
+    - 返回Boolean
+
+    - Stream提供了多种匹配操作，允许检测指定的Predicate是否匹配整个Stream
+      ```
+      boolean anyStartsWithA = 
+          stringCollection
+              .stream()
+              .anyMatch((s) -> s.startsWith("a"));
+              //.allMatch((s) -> s.startsWith("a"));
+              //.noneMatch((s) -> s.startsWith("a"));
+      ```
+
+  - Count 计数：返回Stream中元素的个数，返回值类型是long。
+
+  - Reduce 规约：允许通过指定的函数来讲stream中的多个元素规约为一个元素，规越后的结果是通过Optional接口表示的
+  
+  - collect 收集：
+  
+    - 将流转换为其他形式。接收一个Collector接口的实现，用于给Stream中元素做汇总的方法
+  
+    - `userList.stream().map(this::getSafetyUser).collect(Collectors.toList();`
+
+
 

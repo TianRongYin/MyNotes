@@ -369,7 +369,7 @@ new Vue({//vue 实例化
     ```
     <MyTable :list="list">
     	<template #default="obj">
-    	<button @click="del(obj.id)">删除</button>
+    		<button @click="del(obj.id)">删除</button>
     	</template>
     </MyTable>
     ```
@@ -979,30 +979,134 @@ import { createRouter } from "vue-router";
 - 使用：`pnpm install`、`pnpm add axios`
 - element-plus：`pnpm install element-plus`、`pnpm add -D unplugin-vue-components unplugin-auto-import`
 
-# 杂记
+# Axios(vue3)
 
-- `Dom对象.focus()`获得焦点，通常用于页面挂载完成后直接让表单输入框获得焦点
-- 路径中`@`代表src
-- `<script setup>中的代码会在每次组件实例被创建之前执行`
-- 
+- [请求配置 | Axios中文文档 | Axios中文网 (axios-http.cn)](https://www.axios-http.cn/docs/req_config)
 
-# Axios实例
+- 安装：`pnpm add axios`
 
+- 在util包下新建request.js文件
+
+- 编写配置
+
+    ```
+    import axios from "axios";
+    import { Store } from "@/stores";
+    import router from "@/router";
     //常用的基本配置
     const instance = axios.create({
-        baseURL:'http://localhost:8080', //请求的域名，基本地址
-        timeout:5000,  //请求的超时时长，单位毫秒
-        url:'/data.json',  //请求的路径
-        method:'get，post，put，patch，delete' , //请求方法
-        headers:{
-            token:''  //比如token登录鉴权，请求的时候携带token，让后端识别登录人的信息
-        },   //请求头
-    })
+      baseURL: "http://localhost:8080", //请求的域名，基本地址
+      timeout: 5000, //请求的超时时长，单位毫秒
+    });
     //添加请求拦截器
-    instance.interceptors.request.use(function (config){
-    	return config//发出请求时该做什么
-    }, function(){
-    	return Promise.reject(error)
-    })
+    instance.interceptors.request.use(
+      function (config) {
+        const store = Store();
+        if (store.token) {
+          config.headers.Authorization = store.token;
+        }
+        return config; //发出请求时该做什么
+      },
+      function () {
+        return Promise.reject(error);
+      }
+    );
     //添加响应拦截器
-    instance.interceptors.response.use()
+    instance.interceptors.response.use(
+      (res) => {
+        if (res.data.code == 200) {
+          return res;
+        }
+        alert(res.data.message);
+        return res;
+      },
+      (err) => {
+        if (err.response?.status == 401) {
+          router.push("/login");
+        }
+        alert("权限不足");
+        return Promise.reject(err);
+      }
+    );
+    export default instance;
+    ```
+    
+- 在要用的文件中引入`import request from "@/util/request";`
+
+- 在js脚本中直接使用：`const res = await request.get()`
+
+# 开发
+
+## 小细节
+
+- `Dom对象.focus()`获得焦点，通常用于页面挂载完成后直接让表单输入框获得焦点
+- `<script setup>中的代码会在每次组件实例被创建之前执行`
+- JSON 格式的字符串应该使用双引号（"）而不是单引号（'）`var jsonStr = '["java","python"]'`
+- 当后端发送的Json数据中带有数组或者集合时，前端只能以字符串类型接收，需要手动序列化：`JSON.parse(List)`
+- 路由跳转使用`router.replace()`，将会用新页面代替现在的页面，当你选择返回上一级的时候被替代的页面不会再出现
+- axois发送post请求时，默认只能传递json格式的数据，如果想使用正常参数则将数据进行序列化：
+  `request.post('/testApi', qs.stringify(data))`
+
+- 动态键：当我们设置的键是一个变量时，用`[]`包裹起来即可，`[key]: value`
+
+- 样式传递到子组件：`:deep(.class){ height: 128px }`
+
+## vue+ts项目初始化报错
+
+- 在项目中找到env.d.ts文件,这个文件用于配置解析项
+  ```
+  declare module '*.vue' {
+    import { defineComponent } from 'vue';
+    const Component: ReturnType<typeof defineComponent>;
+    export default Component;
+  }
+  ```
+
+- 配置后在tsconfig.json里面引入即可
+
+## axios中get请求传参为数组（参数序列化）
+
+- axios中的get方法，如果参数是数组，发请求的参数就会出问题无法解析，比如`enter?tag[]=1&tag[]=2&tag[]=3&tag[]=4`
+
+- npm install qs
+
+```
+import qs from "qs";
+axios.get(url,{
+    params:{
+        a:1,
+        b:[1,2]
+    },
+    paramsSerializer: function (params) {  
+      return qs.stringify(params, { arrayFormat: "repeat" });  
+    },
+})
+```
+
+## axios携带Cookie
+
+- axios默认不携带cookie
+
+- 想要axios携带cookie，需要前后协调，很容易触发跨域问题
+
+  - axios配置
+    ```
+    axios.create({
+      baseURL: "http://localhost:8080", 
+      timeout: 5000, 
+      withCredentials:true //开启携带cookie
+    });
+    ```
+
+  - 响应需要携带响应头 Access-Control-Allow-Credentials: true；
+    ```
+    response.addHeader("Access-Control-Allow-Credentials","true");
+    ```
+
+  - 响应头 Access-Control-Allow-Origin 不能是通配符“*” ，并且需要和请求头Origin 的值一致。
+    ```
+    //可以直接使用@CrossOrigin(origins = {"http://localhost:3000"})
+    response.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+    ```
+
+    

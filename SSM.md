@@ -64,7 +64,7 @@
       * 配置?FactoryBean类实现FactoryBean<?>接口并重写getObject(想要实例化的对象)和getObjectType(对象的class类型，返回.class文件就行)方法，如果想要多例的，重写最后一个方法即可
       * \<bean id="唯一标识" class="FactoryBean全类名">
 
-## 注解开发==（主要）==
+## 注解开发
 
 * ```
   ApplicationContext ctx = new AnnotationConfigApplicationContext(SpringConfig.class)
@@ -554,13 +554,20 @@ protected void addInterceptors(InterceptorRegistry registry) {
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.yin.mapper.UserMapper">
-    <select id="selectAll" resultType="com.yin.pojo.User">
-        select * from User;
+<mapper namespace="com.example.mapper.StudentMapper">
+     <!-- resultType是结果类型，parameterType是参数类型-->
+    <select id="selectAll" resultType="com.example.pojo.Student">
+        select * from student8
     </select>
-   <select id="select" resultType="com.yin.pojo.User">
-        select * from User where username = #{username} and password = #{password};
-    </select>
+    <insert id="add" parameterType="com.example.pojo.Student">
+        insert into student8 values(#{sid},#{sname},#{score})
+    </insert>
+    <delete id="delete" parameterType="Integer">
+        delete from student8 where sid = #{sid}
+    </delete>
+    <update id="update" parameterType="com.example.pojo.Student">
+        update student8 set sname=#{sname},score=#{score} where sid=#{sid}
+    </update>
 </mapper>
 ```
 
@@ -584,7 +591,7 @@ protected void addInterceptors(InterceptorRegistry registry) {
         </environment>
     </environments>
     <mappers>
-        <mapper resource="com/yin/service/mapper/UserMapper.xml"/> 引入映射文件
+        <mapper resource="mapper/UserMapper.xml"/> 引入映射文件
     </mappers>
 </configuration>
 ```
@@ -595,9 +602,34 @@ protected void addInterceptors(InterceptorRegistry registry) {
 
   `User select(@Param("username") String username, @Param("password") String password);`
 
-- 将Mapper映射文件和对应接口放在同一包下
-
 ==注意==：在resource目录下创建新目录用 ' / ' 隔开能有效地将Mapper接口和映射文件在Maven编译后放在同一包下
+
+- 如果你的Mapper.xml文件放到了非resourse目录下，会出现`xxxMapper is not known to the MapperRegistry.`，配置maven
+
+```
+<!--在build中配置resources，来防止我们资源导出失败的问题-->
+<build>
+    <resources>
+        <resource>
+            <directory>src/main/resources</directory>
+            <includes>
+                <include>**/*.properties</include>
+                <include>**/*.xml</include>
+            </includes>
+            <filtering>true</filtering>
+        </resource>
+        <resource>
+            <directory>src/main/java</directory>
+            <includes>
+                <include>**/*.properties</include>
+                <include>**/*.xml</include>
+            </includes>
+            <filtering>true</filtering>
+        </resource>
+    </resources>
+</build>
+
+```
 
 * 接口规范：
   * Mapper.xml文件中的namespace与mapper**接口的全限定名**相同
@@ -686,63 +718,6 @@ public class UserServiceImpl implements UserService {
 - ServletConfig extends AbstractAnnotationConfigDispatcherServletInitializer：重写三个方法加载配置
 - SpringMvcConfig：@Configuration、@ComponentScan("表现层")、@EnableWebMvc
 - SpringMvcSupport：@Configuration、重写addResourceHandlers方法，将静态资源放行
-
-## 表现层与前端数据传输协议
-
-- 表现层有很多种返回值但是前端不方便辨别接收
-- 数据层并没有成功拿到数据，但是前端无法得知
-- 我们要保证传回前端数据是统一格式，所以我们可以将结果封装成同一个固定的类对象Result
-- Result属性：
-  - Object data：用来接收从数据层来的数据
-  - Integer code：用来告诉前端这是数据层的哪个操作，并且告知这次请求是成功还是失败，需要单独写一个类存储code常量
-  - String message：错误提示信息
-- 这样处理后，表现层只需要响应同一种类型的对象即Result，将所有表现层方法响应返回值改为Result，并赋值对应属性
-
-```java
-public class Code {
-    public static final int Save_OK = 20011;
-    public static final int Save_ERR = 20010;
-    public static final int Update_OK = 20021;
-    public static final int Update_ERR = 20020;
-    public static final int Delete_OK = 20031;
-    public static final int Delete_ERR = 20030;
-    public static final int GetById_OK = 20041;
-    public static final int GetById_ERR = 20040;
-}
-```
-
-## 异常处理
-
-**异常处理器**
-
-- 在我们的web项目中难免出现异常，而异常的种类又多种多样不知道来自哪一层，所以我们需要一个东西将各类异常分类处理
-- 首先我们不可能在每一层都处理异常，所以我们在每一层出现异常时将其往上抛出，直到异常抛至表现层集中处理
-- 每个方法都去单独处理异常意义不大，所以我们需要采用==AOP==的思想，而Spring也早就帮我们想好了（异常处理器）
--  写一个异常处理器类（要保证能被Spring配置类扫到）
-
-```
-@RestControllerAdvice//集中统一处理项目中的异常，处理rest风格的controller
-public class ProjectExceptionAdvice {
-    @ExceptionHandler(Exception.class)//数据拦截器，选择拦截异常种类
-    public Result doException(Exception ex){
-        System.out.println("出现异常");//异常处理
-        return new Result(null,666);//正常响应前端
-    }
-}
-```
-
-**项目异常处理**：==将所有异常封装成两类处理然后去异常处理器中分类处理==
-
-- 业务异常：用户的不规范操作
-  - 发送对应消息，提醒规范操作
-- 系统异常：可预计无法避免
-  - 安抚用户，提醒维护，记录日志
-- 其他：无法预知的异常
-  - 安抚用户，记录日志，提醒维护
-
-创建两个异常类继承RuntimeException，定义成员变量code（Integer）来区别异常，构造方法，在Code类中加常量
-
-在异常处理器中分别捕获两类异常，并将定义好的异常编号和信息返回
 
 # Maven高级
 
@@ -1006,6 +981,7 @@ enterprise:
 
     ```java
     @Component
+    @Data //成员变量必须有set方法
     @ConfigurationProperties(prefix = "enterprise")
     public class enterprise {
         private String name;
@@ -1013,11 +989,11 @@ enterprise:
         private String[] likes;
     }
     ```
-
+    
     - ==警告：SpringBoot Configuration Annotation Processor not configured==的解决方案：
-
+    
     - 在pom文件中导入
-
+    
     - ```xml
       <dependency>
           <groupId>org.springframework.boot</groupId>
@@ -1123,6 +1099,37 @@ public class WebConfig implements WebMvcConfigurer {
 }
 ```
 
+## 定时任务
+
+- 计时器StopWatch
+
+  - stopWatch是org.springframework.util包下的一个工具类，使用它可直观的输出代码执行耗时，以及执行时间百分比
+
+  - ```
+    // 构造方法的参数表示的是StopWatch实例的id，标志着实例的身份，可以为空
+    StopWatch watch = new StopWatch("StopWatch-Learning");
+    //开始任务，任务名也可以为空
+    watch.start("test1");
+    //任务是否正在运行
+    boolean running = watch.isRunning();
+    // 任务停止
+    watch.stop();
+    // 获取任务的名字
+    String lastTaskName = watch.getLastTaskName();
+    long lastTaskTimeMillis = watch.getLastTaskTimeMillis(); // 任务运行时间 微妙
+    long totalTimeNanos = watch.getTotalTimeMillis(); //所有任务运行时间的总和
+    ```
+
+- SpringTask（Schedule定时框架）
+
+  - 启动配置类中添加注解`@EnableScheduling`
+  - 根据需要选择@Schedule (fixedRate、fixedDelay、cron表达式)三种任务调度器
+    - `fixedRate=3000`：固定频率任务，每隔3秒执行一次，如果设置了并发执行任务，任务执行时间就不会影响频率但可能重复
+    - `@Async`：并发执行
+    - `fixedDelay= 3000`：上次任务结束后再计时3秒后再次开启新的一次调用
+    -  `@Scheduled(cron = "0/3 * * * * *")`是根据cron表达式执行定时任务的。
+    - 在线corn表达式生成器，可以图形化生成corn表达式：https://cron.qqe2.com/
+
 # MybatisPlus
 
 ## 开发步骤
@@ -1184,7 +1191,7 @@ mybatis-plus:
   }
   ```
 
-  - 创建IPage对象，本身是接口，实现类为Page(int 多少页,int 每页几条数据)
+  - 创建IPage对象，本身是接口，实现类为Page(int 第几页,int 多少条数据)
   - 用dao层接口调用selectPage（service层是page方法），将page对象传进去
   - IPage类的方法：
     - getCurrent（）返回当前页码
@@ -1300,7 +1307,7 @@ mybatis-plus:
     * AUTO：自增长
     * NONE
     * INPUT：输入
-    * ASSIGN_ID：通过雪花算法自动生成的id（可兼容数值型与字符串型）
+    * ASSIGN_ID（默认）：通过雪花算法自动生成的id（可兼容数值型与字符串型）
     * ASSIGN_UUID：通过UUID生成算法自动生成的id
 
 * SpringBoot全局设置
@@ -1318,6 +1325,8 @@ mybatis-plus:
 * 直接删除或查询
 
   * delete/selectBatchIds(Collection collection);
+
+* Batch就是批量操作的意思，比如`userService.saveBatch(userList,100)`表示按照100个为一批来插入数据
 
 * 逻辑删除
 
@@ -1342,6 +1351,9 @@ mybatis-plus:
        logic-delete-value: 1 # 将deleted作为逻辑删除字段，0为未删除值，1为已删除值
     ```
 
+- update
+  - xxxService.update().setSql("stock = stock -1").update()
+
 ## 乐观锁
 
 * 增加字段Version
@@ -1349,10 +1361,6 @@ mybatis-plus:
 * 添加乐观锁拦截器：OptimysticLokerInnerInterceptor
 * 先查询出数据，再修改。保证version对应上
 * 当操作时没有version属性时，将不会触发锁机制
-
-## 代码生成器
-
-- 导入依赖
 
 ## 驼峰映射
 
@@ -1366,6 +1374,27 @@ mybatis-plus:
 
 ==注意开启后实体类的成员变量凡是非首字母带大写的都会被驼峰映射成下划线==
 
+## 公共字段填充
+
+在新增员工时需要设置创建时间、创建人、修改时间、修改人等字段，在编辑员工时需要设置修改时间和修改人等字段。这些字段属于公共字段，也就是很多表中都有这些字段。我们可以对公共字段在某地方统一处理来简化开发：
+
+- 在实体类需要自动填充的属性上加上`@TableField(fill = FieldFill.INSERT_UPDATE)`注解，更新和插入自动填充
+- 编写元数据对象处理器
+
+```java
+@Component
+public class MyMataObjectHandler implements MetaObjectHandler {
+    @Override//插入操作时自动填充
+    public void insertFill(MetaObject metaObject) {
+        metaObject.setValue("createTime", LocalDateTime.now());
+    }
+    @Override//更新操作时自动填充
+    public void updateFill(MetaObject metaObject) {
+        metaObject.setValue("updateTime", LocalDateTime.now());
+    }
+}
+```
+
 # 实际开发
 
 ## 杂记
@@ -1376,6 +1405,30 @@ mybatis-plus:
 
 - 在Spring Boot中，可以通过使用注解`@JsonProperty`来解决实体类中变量名与前端传送的JSON数据键不一致的问题。
   - 在使用`@JsonProperty`注解时，需要确保你的Spring Boot应用程序中包含`jackson-databind`库的依赖
+
+- Json字符串数组与数组和Set的转换
+  
+  ```java
+     String str = "[\"张三\",\"李四\",\"王五\"]";
+     //json字符串数组转数组
+     Gson gson = new Gson();
+     String[] array = gson.fromJson(str, String[].class);
+     //json字符串数组转Set
+     Set<String> list = new Gson().fromJson(str, new TypeToken<Set<String>>(){}.getType());
+  ```
+  
+- sql语句中的`where id in (...)`中，是不会根据括号内数据的顺序查询
+
+  - `qw.eq("id",ids)`想要顺序的话，可以将返回的List数据按照id转换成Map，在顺序按id取出
+  - `.collect(Collectors.groupingBy(User::getId))`
+  - `listByIds(ids)`在传入参数为0或者空也会报错，sql语句会变成`where id in ()`
+  
+- Mysql优化之分表
+
+- 在maven项目中读取文件通常使用类加载器能直接读取`/src/main/resource`目录下的资源文件
+
+  - `本类.class.getClassLoader().getResourceAsStream("文件名")`，返回值是一个`InputStream`对象
+
 
 
 ## MD5加密
@@ -1439,6 +1492,107 @@ spring:
       max-request-size: 100MB #单次请求的最大大小默认为100MB
 ```
 
+## 通用反馈对象
+
+```java
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@Data
+@AllArgsConstructor
+public class Result {
+    private Object data;
+    private int code;
+    private String message;
+
+    public static Result success(Object data, String message) {
+        return new Result(data, 200, message);
+    }
+
+    public static Result success(Object data) {
+        return new Result(data, 200, "");
+    }
+    public static Result success(String message) {
+        return new Result(null, 200, message);
+    }
+
+    public static Result fail(int code, String message) {
+        return new Result(null, code, message);
+    }
+
+    public static Result fail(String message) {
+        return new Result(null, 500, message);
+    }
+}
+
+```
+
+## 全局异常处理
+
+- 枚举错误码
+  ```java
+  public enum MyErrorCode {
+  
+      SUCCESS(0, "ok"),
+      PARAMS_ERROR(40000, "请求参数错误"),
+      NULL_ERROR(40001, "请求数据为空"),
+      NOT_LOGIN(40100, "未登录"),
+      NO_AUTH(40101, "无权限"),
+      FORBIDDEN(40301, "禁止操作"),
+      SYSTEM_ERROR(50000, "系统内部异常");
+  
+      private final int code;
+      private final String message;
+  
+      MyErrorCode(int code, String message) {
+          this.code = code;
+          this.message = message;
+      }
+  
+      public int getCode() {
+          return code;
+      }
+  
+      public String getMessage() {
+          return message;
+      }
+  
+  }
+  
+  ```
+
+- 自定义异常
+  ```java
+  @Getter
+  public class CommonException extends RuntimeException {
+      private final Integer code;
+  
+      public CommonException(Integer code, String message) {
+          super(message);
+          this.code = code;
+      }
+      public CommonException(MyErrorCode errorCode) {
+          super(errorCode.getMessage());
+          this.code = errorCode.getCode();
+      }
+  }
+  ```
+  
+- 全局异常处理器
+  ```java
+  @RestControllerAdvice
+  public class GlobalExceptionHandler {
+      @ExceptionHandler(CommonException.class)
+      public Result<Void> CommonException(CommonException ex){
+          return Result.fail(ex.getCode(),ex.getMessage());
+      }
+      @ExceptionHandler(RuntimeException.class)
+      public Result<Void> RuntimeException(RuntimeException ex){
+          return Result.fail(MyErrorCode.SYSTEM_ERROR.getCode(),ex.getMessage());
+      }
+  }
+  ```
+
 ## 跨域请求
 
 - 之所以会产生跨域问题是由于浏览器实现了同源策略（Same origin policy），同源策略规定发起[ajax](https://so.csdn.net/so/search?q=ajax&spm=1001.2101.3001.7020)请求时当原地址（原始域）和请求地址（请求域）的协议、域名、端口号三者任意一个不同就会引起跨域问题。
@@ -1452,21 +1606,46 @@ spring:
   public class CORSInterceptor implements HandlerInterceptor {
       @Override
       public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-     	  //允许所有来源访同
-          response.setHeader("Access-Control-Allow-Origin", "*");
-          //允许访问的方式
-          response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT");
-          response.setHeader("Access-Control-Max-Age", "3600");
-          response.setHeader("Access-Control-Allow-Headers", "x-requested-with");
+          String origin = request.getHeader("Origin");
+          response.setHeader("Access-Control-Allow-Origin", origin);
+          response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD");
+          response.setHeader("Access-Control-Allow-Headers", "Content-Type,X-Requested-With,accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers,Authorization,Access-Token,token");
+          response.setHeader("Access-Control-Expose-Headers", "*");//响应客户端的头部 允许携带Token 等等
+          response.setHeader("Access-Control-Allow-Credentials", "true");  // 允许携带cookie
+          response.setHeader("Access-Control-Max-Age", "3600");   // 预检请求的结果缓存时间
           return true;
       }
   }
   ```
-
+  
+  - ==记得在配置类中添加拦截器==
   - 注解：在我们需要的controller上加@CrossOrigin`@CrossOrigin(origins = "*",maxAge = 3600)`
     - origin="\*"代表所有域名都可访问
     - maxAge简单来说就是Cookie的有效期 单位为秒若maxAge是负数,则代表为临时Cookie,不会被持久化,Cookie信息保存在浏览器内存中,浏览器关闭Cookie就消失
-    - 可以加在Controller公共父类（PublicUtilController）中，所有Controller继承
+  - 可以加在Controller公共父类（PublicUtilController）中，所有Controller继承
+
+## ThreadLocal
+
+- 客户端发送的每次http请求，对应的在服务端都会分配一个新的线程来处理，在处理过程中涉及到的类中的方法都属于相同的一个线程，由此我们可以通过线程来获取和传递数据
+
+  - localThread是Thread的一个局部变量，ThreadLocal为每个线程提供单独一份存储空间，具有线程隔离的效果，只有在线程内才能获取到对应的值，线程外则不能访问。
+
+    - 编写BaseContext工具类，基于ThreadLocal封装的工具类
+
+    ```java
+    public class BaseContext {
+        private static ThreadLocal<Long> threadLocal = new ThreadLocal<>();
+        public static void setCurrentId(Long id){
+            threadLocal.set(id);
+        }
+        public static Long getCurrentId(Long id){
+            return threadLocal.get();
+        }
+    }
+    ```
+
+    - 在LogincheckFilter的doFilter方法中调用BaseContext来设置当前登录用户的id
+    - 在MyMetaobjectHandler的方法中调用BaseContext获取登录用户的id
 
 ## JWT令牌
 
@@ -1527,50 +1706,172 @@ spring:
     resp.getwriter ( ).write(notLogin) ;
     ```
 
+## Swagger+Knife4j
 
+- 自动生成接口文档
 
-## 公共字段填充
+- Knife4j是swagger的增强
 
-在新增员工时需要设置创建时间、创建人、修改时间、修改人等字段，在编辑员工时需要设置修改时间和修改人等字段。这些字段属于公共字段，也就是很多表中都有这些字段。我们可以对公共字段在某地方统一处理来简化开发：
+- 使用
 
-- 在实体类需要自动填充的属性上加上`@TableField(fill = FieldFill.INSERT_UPDATE)`注解，更新和插入自动填充
-- 编写元数据对象处理器
+  - 引入依赖
+    ```
+    <dependency>
+       <groupId>com.github.xiaoymin</groupId>
+       <artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
+       <version>4.2.0</version>
+    </dependency>
+    ```
 
-```java
-@Component
-public class MyMataObjectHandler implements MetaObjectHandler {
-    @Override//插入操作时自动填充
-    public void insertFill(MetaObject metaObject) {
-        metaObject.setValue("createTime", LocalDateTime.now());
-    }
-    @Override//更新操作时自动填充
-    public void updateFill(MetaObject metaObject) {
-        metaObject.setValue("updateTime", LocalDateTime.now());
-    }
-}
-```
-
-- 客户端发送的每次http请求，对应的在服务端都会分配一个新的线程来处理，在处理过程中涉及到的类中的方法都属于相同的一个线程，由此我们可以通过线程来获取和传递数据
-
-  - localThread是Thread的一个局部变量，ThreadLocal为每个线程提供单独一份存储空间，具有线程隔离的效果，只有在线程内才能获取到对应的值，线程外则不能访问。
-
-    - 编写BaseContext工具类，基于ThreadLocal封装的工具类
-
-    ```java
-    public class BaseContext {
-        private static ThreadLocal<Long> threadLocal = new ThreadLocal<>();
-        public static void setCurrentId(Long id){
-            threadLocal.set(id);
+  - 编写配置类
+    ```
+    @Configuration
+    @EnableSwagger2WebMvc
+    public class SwaggerConfig {
+    
+        //配置Swagger2的Docket的Bean实例
+        @Bean(value = "defaultApi2")
+        public Docket createRestApi() {
+            return new Docket(DocumentationType.SWAGGER_2)
+                    // 配置 API 的一些基本信息，比如：文档标题title，文档描述description，文档版本号version
+                    .apiInfo(apiInfo())
+                    // 生成 API 文档的选择器，用于指定要生成哪些 API 文档
+                    .select()
+                    //指定要生成哪个包下的 API 文档
+                    .apis(RequestHandlerSelectors.basePackage("com.yin.teamDemo.controller"))
+                    //指定要生成哪个 URL 匹配模式下的 API 文档。这里使用 PathSelectors.any()，表示生成所有的 API 文档。
+                    .paths(PathSelectors.any())
+                    .build();
         }
-        public static Long getCurrentId(Long id){
-            return threadLocal.get();
+        //文档信息配置
+        private ApiInfo apiInfo() {
+            return new ApiInfoBuilder()
+                    // 文档标题
+                    .title("swagger_knife4j")
+                    // 文档描述信息
+                    .description("在线API文档")
+                    // 文档版本号
+                    .version("1.0")
+                    .build();
         }
     }
     ```
 
-    - 在LogincheckFilter的doFilter方法中调用BaseContext来设置当前登录用户的id
-    - 在MyMetaobjectHandler的方法中调用BaseContext获取登录用户的id
+  - 访问`http://localhost:8080/doc.html`
+  
+- 常用注解
 
-## 阿里云OSS
+  - `@ApiModel(value = "Id请求体")`：添加在类上，描述类的一些基本信息，比如请求体DTO
+  - ` @ApiModelProperty("主键id")`：添加在成员变量上，对数据的解释，跟请求参数的说明差不多
+  - ` @ApiOperation(value = "根据id查询用户详情")`：对某个方法/接口进行描述
+  - `@ApiParam(value = "用户名称", required = false)`：表示对请求参数的说明
 
-- SDK: Software Development Kit的缩写，软件开发工具包，包括辅助软件开发的依赖（jar包)、代码示例等，都可以叫做SDK。
+
+## 分布式登录
+
+- 第一种：业务生成token并将用户信息存入redis，token值既是前端登录令牌也是后端redis的键存储用户信息
+  ```
+     //uuid随机生成token
+     String token = UUID.randomUUID().toString(true);
+     //转换bean，存储用户信息
+     UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
+     //转换为map，并手动完成序列化
+     Map<String, Object> map = BeanUtil.beanToMap(userDTO);
+     map.put("userId",String.valueOf(userDTO.getUserId()));
+     map.put("artistId",String.valueOf(userDTO.getArtistId()));
+     //将map以hash的结构存入redis并设置有效期
+     stringRedisTemplate.opsForHash().putAll(Login_USER_KEY+token,map);
+     stringRedisTemplate.expire(Login_USER_KEY,LOGIN_USER_TTL, TimeUnit.MINUTES);
+     //返回数据
+     return Result.success(token,"登录成功");
+  ```
+
+- 第二种：将session用redis存储即可解决分布式登录问题（cookie-session实现登录）
+
+  - 引入依赖
+    ```
+    <dependency>
+       <groupId>org.springframework.boot</groupId>
+       <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+    <dependency>
+       <groupId>org.springframework.session</groupId>
+       <artifactId>spring-session-data-redis</artifactId>
+    </dependency>
+    ```
+
+  - application配置
+    ```
+    spring:
+      session:
+        timeout: 86400
+        store-type: redis
+    ```
+
+  - 在启动配置类中添加`@EnableRedisHttpSession`注解即可
+
+- 利用会话技术存在一个隐患
+  - 用户如果不携带cookie一直登录，redis中存储的session越来越多可能会内存溢出
+
+## 批量导入
+
+- 利用mybatisplus的saveBatch方法
+- 嵌套循环分批导入
+- 利用并发编程`CompletableFuture`
+
+```
+              final int NUM = 5000;
+              int j = 0;
+              List<CompletableFuture<Void>> futureList = new ArrayList<>();
+              for (int i = 0; i < 20; i++) {
+                  List<User> userList = new ArrayList<>();
+                  do {
+                      j++;
+                      User user = new User();
+                      user.setUserAccount("root");
+                      user.setUsername("kobe");
+                      user.setPassword("root");
+                      user.setGender(0);
+                      user.setPhone("123");
+                      user.setEmail("@123.com");
+                      user.setUserStatus(0);
+                      user.setIsDelete(0);
+                      user.setUserRole(0);
+                      user.setTagList("[]");
+                      userList.add(user);
+                  } while (j % NUM != 0);
+                  CompletableFuture<Void> future = CompletableFuture.runAsync(()->{
+                      userService.saveBatch(userList,NUM);
+                  },executor);
+                  futureList.add(future);
+              }
+              CompletableFuture.allOf(futureList.toArray(new CompletableFuture[]{})).join();
+```
+
+## HttpClient
+
+- 通过HttpClient发送请求，用于第三方接口对接
+
+- 使用：
+
+  - 导包：httpclient
+
+  - ```
+          // 1. 创建HttpClient实例
+          CloseableHttpClient httpclient = HttpClients.createDefault();
+          // 2. 创建HttpPost实例
+          HttpPost httpPost = new HttpPost("http://httpbin.org/post");
+          // 设置请求参数（使用Json工具包）
+          httpPost.setEntity(new StringEntity("this is Post"));
+          // 3. 调用HttpClient实例来执行HttpPost实例
+          CloseableHttpResponse response = httpclient.execute(httpPost);
+          // 4. 读 response
+          int status = response.getStatusLine().getStatusCode();
+          HttpEntity entity = response.getEntity();
+          // 5. 释放连接
+          response.close();
+          httpclient.close();
+    ```
+
+  - 创建HttpClient工具类
+
